@@ -2,119 +2,131 @@
 const WIDTH = window.innerWidth
 const HEIGHT = window.innerHeight
 
+const canvas = document.createElement('canvas')
+canvas.width = WIDTH
+canvas.height = HEIGHT
+document.body.appendChild(canvas)
+const context = canvas.getContext('2d')
+
+
 class Particle {
-    constructor(x, y) {
-        this.x = x
-        this.y = y
-
-        this.prevX = x
-        this.prevY = y
-
-        this.initX = x
-        this.initY = y
-
-        this.radius = 100
-
-        this.resetTo()
+    constructor(pos, acc, perlin) {
+        this.pos = pos
+        this.acc = acc
+        this.perlin = perlin
+        this.alive = true
     }
 
-    resetTo(fromRad) {
-        this.fromRad = fromRad
-        this.toRad = this.fromRad + Math.random() * Math.PI * 0.1
+    update() {
+        if (!this.alive) return
 
-        this.duration = 200
-        this.startTime = (new Date()).getTime()
-        this.fromRadius = 0
-        this.toRadius = 100 + 20 * Math.random()
+        this.pos.x += this.acc.x
+        this.pos.y += this.acc.y        
 
-        this.seedX = parseInt(WIDTH * Math.random())
-        this.seedY = parseInt(HEIGHT * Math.random())
+        const perlin = this.perlin
 
-        this.x = this.initX
-        this.y = this.initY
-        this.prevX = this.x
-        this.prevY = this.y
-    }
+        const i = (parseInt(this.pos.x) + WIDTH * parseInt(this.pos.y)) * 4
+        const deg = perlin.data[i]  / 255.
+        
+        const nx = Math.cos(deg * 2 * Math.PI) * 2.0
+        const ny = Math.sin(deg * 2 * Math.PI) * 2.0
 
-    update(t, perlin) {
-        const { startTime, duration, fromRadius, toRadius, initX, initY, toRad, fromRad } = this
-        if (!startTime) return
+        this.pos.x += nx
+        this.pos.y += ny        
+        
 
-        const currTime = (new Date()).getTime()
-        const a = (currTime - startTime) / duration
+        this.acc.x *= 0.95
+        this.acc.y *= 0.95
 
-        if (a > 1.0) {            
-            this.resetTo(Math.sin(t * 0.001) * 2 * Math.PI)
-        } else {
-            const currRad = fromRad + (toRad - fromRad) * a
-            const radius = fromRadius + (fromRadius - toRadius) * a
-            const perlinX = parseInt((this.seedX + Math.sin(t * 0.1) * 0.5))
-            const perlinY = parseInt((this.seedY + Math.cos(t * 0.1) * 0.5))
-            const perlinRad = perlin.data[(perlinX + perlinY * WIDTH) * 4] / 255. * 10.
-            
-            const x = initX + Math.cos(currRad + perlinRad) * radius
-            const y = initY + Math.sin(currRad + perlinRad) * radius
-            
-            this.prevX = this.x
-            this.prevY = this.y
-    
-            this.x = x
-            this.y = y
+        if (Math.abs(this.acc.x) < 0.2 && Math.abs(this.acc.y) < 0.2) {
+            this.alive = false
         }
     }
 
     draw(context) {
-        const { x, y, prevX, prevY } = this
-
-        
+        const { pos } = this
+ 
+        context.fillStyle = 'rgba(120, 150, 255, 0.1)'
         context.beginPath()
-        context.strokeStyle = 'rgba(255, 255, 255, 0.2)'
-        context.moveTo(prevX, prevY, 1, 0, 2 * Math.PI)
-        context.lineTo(x, y, 1, 0, 2 * Math.PI)
-        context.stroke()
-
-    }
+        context.arc(pos.x, pos.y, 1, 0, 2 * Math.PI)
+        context.closePath()
+        context.fill()
+    }    
 }
 
-
 const init = (perlin) => {
-    const particles = []
+    const particles = [] 
 
-    for (let i = 0; i < 20; i++) {
-        const particle = new Particle(WIDTH * 0.5, HEIGHT * 0.5)
-        particles.push(particle)
-    }
-    
-    const canvas = document.createElement('canvas')
-    canvas.width = WIDTH
-    canvas.height = HEIGHT
-    document.body.append(canvas)
-    const context = canvas.getContext('2d')
-    
-    context.fillStyle = '#444'
+    context.globalCompositeOperation = 'lighter'
+    context.fillStyle = '#222'
     context.fillRect(0, 0, WIDTH, HEIGHT)
-    
+
     function render(t) {
-    
-    
-        particles.forEach((particle) => {
-            particle.update(t, perlin)
+
+        for (let i = 0; i < particles.length; i++) {
+            const particle = particles[i]
+            particle.update()
             particle.draw(context)
-        })
+            if (!particle.alive) {
+                particles.splice(i, 1)
+            }
+        }
         requestAnimationFrame(render)
     }
-    
     requestAnimationFrame(render)
-    
+
+    let isGenerative = false
+    let prevPos = {
+        x:0, y:0
+    }
+    let currPos = {
+        x:0, y:0
+    }
+    window.addEventListener('mousedown', (e) => {
+        isGenerative = true
+        currPos.x = e.clientX
+        currPos.y = e.clientY
+    })
+    window.addEventListener('mousemove', (e) => {
+        if (isGenerative) {
+            const x = e.clientX
+            const y = e.clientY
+            prevPos.x = currPos.x
+            prevPos.y = currPos.y
+            
+            currPos.x = x
+            currPos.y = y
+
+            const diff = {
+                x: (currPos.x - prevPos.x),
+                y: (currPos.y - prevPos.y)
+            }
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle({
+                    x: x + (Math.random() - 0.5) * 2.0 * 10.0,
+                    y: y + (Math.random() - 0.5) * 2.0 * 10.0
+                }, {
+                    x: diff.x * 0.1,
+                    y: diff.y * 0.1
+                }, perlin))    
+            }
+
+        }
+    })
+    window.addEventListener('mouseup', (e) => {
+        isGenerative = false    
+    })
 }
 
 const perlinImg = new Image()
 perlinImg.src = './perlin.png'
 
 perlinImg.onload = () => {
-    const c = document.createElement('canvas').getContext('2d')
+    const canvas = document.createElement('canvas')
+    canvas.width = WIDTH
+    canvas.height = HEIGHT
+    const c = canvas.getContext('2d')
     c.drawImage(perlinImg, 0, 0, WIDTH, HEIGHT)
     const perlin = c.getImageData(0, 0, WIDTH, HEIGHT)
     init(perlin)
 }
-
