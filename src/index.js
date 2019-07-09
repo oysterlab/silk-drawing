@@ -82,12 +82,13 @@ const init = (perlin) => {
     let currPos = {
         x:0, y:0
     }
-    window.addEventListener('mousedown', (e) => {
+
+    const startDrawingCallback = (e) => {
         isGenerative = true
         currPos.x = e.clientX
         currPos.y = e.clientY
-    })
-    window.addEventListener('mousemove', (e) => {
+    }
+    const drawingCallback = (e) => {
         if (isGenerative) {
             const x = e.clientX
             const y = e.clientY
@@ -112,10 +113,18 @@ const init = (perlin) => {
             }
 
         }
-    })
-    window.addEventListener('mouseup', (e) => {
-        isGenerative = false    
-    })
+    }
+    const stopDrawingCallback = (e) => {
+        isGenerative = false
+    }
+
+    window.addEventListener('mousedown', startDrawingCallback)
+    window.addEventListener('mousemove', drawingCallback)
+    window.addEventListener('mouseup', stopDrawingCallback)
+
+    window.addEventListener('touchstart', startDrawingCallback)
+    window.addEventListener('touchmove', drawingCallback)
+    window.addEventListener('touchend', stopDrawingCallback)
 }
 
 const perlinImg = new Image()
