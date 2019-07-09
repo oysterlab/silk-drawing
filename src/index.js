@@ -20,23 +20,28 @@ class Particle {
     update() {
         if (!this.alive) return
 
+        this.prevPos = {
+            x: this.pos.x,
+            y: this.pos.y
+        }
+
         this.pos.x += this.acc.x
         this.pos.y += this.acc.y        
 
         const perlin = this.perlin
 
         const i = (parseInt(this.pos.x) + WIDTH * parseInt(this.pos.y)) * 4
-        const deg = perlin.data[i]  / 255.
+        const deg = (perlin.data[i]  / 255. - 0.5) * 2.0
         
         const nx = Math.cos(deg * 2 * Math.PI) * 2.0
         const ny = Math.sin(deg * 2 * Math.PI) * 2.0
 
+
         this.pos.x += nx
         this.pos.y += ny        
-        
 
-        this.acc.x *= 0.95
-        this.acc.y *= 0.95
+        this.acc.x *= 0.9
+        this.acc.y *= 0.9
 
         if (Math.abs(this.acc.x) < 0.2 && Math.abs(this.acc.y) < 0.2) {
             this.alive = false
@@ -44,13 +49,20 @@ class Particle {
     }
 
     draw(context) {
-        const { pos } = this
- 
-        context.fillStyle = 'rgba(120, 150, 255, 0.1)'
-        context.beginPath()
-        context.arc(pos.x, pos.y, 1, 0, 2 * Math.PI)
-        context.closePath()
-        context.fill()
+        const { pos, prevPos } = this
+        
+        if(!prevPos) return
+
+        for(let a = 0; a < 1.0; a += 0.1) {
+            const x = prevPos.x + (pos.x - prevPos.x) * a
+            const y = prevPos.y + (pos.y - prevPos.y) * a
+
+            context.fillStyle = 'rgba(120, 150, 255, 0.1)'
+            context.beginPath()
+            context.arc(x, y, 0.2, 0, 2 * Math.PI)
+            context.closePath()
+            context.fill()
+        }
     }    
 }
 
@@ -102,10 +114,14 @@ const init = (perlin) => {
                 x: (currPos.x - prevPos.x),
                 y: (currPos.y - prevPos.y)
             }
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].acc.x += diff.x * 0.1
+                particles[i].acc.y += diff.y * 0.1          
+            }
+            for (let i = 0; i < 30; i++) {
                 particles.push(new Particle({
-                    x: x + (Math.random() - 0.5) * 2.0 * 10.0,
-                    y: y + (Math.random() - 0.5) * 2.0 * 10.0
+                    x: x + (Math.random() - 0.5) * 2.0 * 3.0,
+                    y: y + (Math.random() - 0.5) * 2.0 * 3.0
                 }, {
                     x: diff.x * 0.1,
                     y: diff.y * 0.1
